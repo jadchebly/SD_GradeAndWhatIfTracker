@@ -20,19 +20,19 @@ with open(OUTPUT_FILE, "w", encoding="utf-8") as out:
         rel_path = os.path.relpath(root, PROJECT_ROOT)
         if rel_path == ".":
             rel_path = "Root"
-        out.write(f"\n\n## 📂 {rel_path}\n\n")
+        out.write(f"\n\n## {rel_path}\n\n")
 
         for file in sorted(files):
             if file.endswith(INCLUDE_EXTS):
                 filepath = os.path.join(root, file)
-                out.write(f"\n### 📄 {file}\n\n")
+                out.write(f"\n###  {file}\n\n")
                 out.write("```" + filepath.split(".")[-1] + "\n")  # syntax highlight
                 try:
                     with open(filepath, "r", encoding="utf-8") as f:
                         out.write(f.read())
                 except Exception as e:
-                    out.write(f"⚠️ Could not read file: {e}")
+                    out.write(f" Could not read file: {e}")
                 out.write("\n```\n")
 
-print(f"✅ Codebase exported to {OUTPUT_FILE}. Now run:")
+print(f" Codebase exported to {OUTPUT_FILE}. Now run:")
 print("   pandoc codebase.md -o codebase.pdf   # convert to PDF")

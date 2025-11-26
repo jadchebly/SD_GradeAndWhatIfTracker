@@ -2,10 +2,10 @@
 
 
 
-## 📂 Root
+## Root
 
 
-### 📄 tranformation.py
+###  tranformation.py
 
 ```py
 import os
@@ -30,29 +30,29 @@ with open(OUTPUT_FILE, "w", encoding="utf-8") as out:
         rel_path = os.path.relpath(root, PROJECT_ROOT)
         if rel_path == ".":
             rel_path = "Root"
-        out.write(f"\n\n## 📂 {rel_path}\n\n")
+        out.write(f"\n\n## {rel_path}\n\n")
 
         for file in sorted(files):
             if file.endswith(INCLUDE_EXTS):
                 filepath = os.path.join(root, file)
-                out.write(f"\n### 📄 {file}\n\n")
+                out.write(f"\n###  {file}\n\n")
                 out.write("```" + filepath.split(".")[-1] + "\n")  # syntax highlight
                 try:
                     with open(filepath, "r", encoding="utf-8") as f:
                         out.write(f.read())
                 except Exception as e:
-                    out.write(f"⚠️ Could not read file: {e}")
+                    out.write(f" Could not read file: {e}")
                 out.write("\n```\n")
 
-print(f"✅ Codebase exported to {OUTPUT_FILE}. Now run:")
+print(f" Codebase exported to {OUTPUT_FILE}. Now run:")
 print("   pandoc codebase.md -o codebase.pdf   # convert to PDF")
 ```
 
 
-## 📂 frontend
+## frontend
 
 
-### 📄 app.js
+###  app.js
 
 ```js
 // --- API base: use localhost to avoid IPv4/IPv6 mismatches ---
@@ -152,7 +152,7 @@ async function load() {
   if (rows.length === 0) {
     const tr = document.createElement("tr");
     tr.className = "empty";
-    tr.innerHTML = `<td colspan="5">No assessments yet — add your first one above ✨</td>`;
+    tr.innerHTML = `<td colspan="5">No assessments yet — add your first one above </td>`;
     els.tableBody.appendChild(tr);
   }
 
@@ -232,7 +232,7 @@ load();
 
 ```
 
-### 📄 index.html
+###  index.html
 
 ```html
 <!doctype html>
@@ -343,7 +343,7 @@ load();
 
 ```
 
-### 📄 styles.css
+###  styles.css
 
 ```css
 /* ===== Light, airy theme ===== */
@@ -560,22 +560,22 @@ tr.empty td{
 ```
 
 
-## 📂 .pytest_cache
+## .pytest_cache
 
 
 
-## 📂 .pytest_cache/v
+## .pytest_cache/v
 
 
 
-## 📂 .pytest_cache/v/cache
+## .pytest_cache/v/cache
 
 
 
-## 📂 tests
+## tests
 
 
-### 📄 conftest.py
+###  conftest.py
 
 ```py
 # tests/conftest.py
@@ -623,7 +623,7 @@ def client():
 
 ```
 
-### 📄 test_api_assessments.py
+###  test_api_assessments.py
 
 ```py
 # tests/test_api_assessments.py
@@ -671,7 +671,7 @@ def test_crud_flow(client):
 
 ```
 
-### 📄 test_api_notfound.py
+###  test_api_notfound.py
 
 ```py
 # tests/test_api_notfound.py
@@ -696,7 +696,7 @@ def test_delete_missing_returns_404(client):
 
 ```
 
-### 📄 test_api_stats.py
+###  test_api_stats.py
 
 ```py
 # tests/test_api_stats.py
@@ -733,7 +733,7 @@ def test_what_if(client):
 
 ```
 
-### 📄 test_api_validation.py
+###  test_api_validation.py
 
 ```py
 # tests/test_api_validation.py
@@ -782,7 +782,116 @@ def test_put_rejects_bad_updates(client):
 
 ```
 
-### 📄 test_stats_edges.py
+###  test_calculations_unit.py
+
+```py
+from datetime import date
+
+from backend import calculations, schemas
+
+
+class Obj:
+    """Lightweight helper to mimic Assessment rows."""
+
+    def __init__(self, weight_pct, score_pct):
+        self.weight_pct = weight_pct
+        self.score_pct = score_pct
+
+
+def test_current_stats_mixes_completed_and_pending():
+    rows = [
+        Obj(30.0, 90.0),  # contributes 27
+        Obj(20.0, 50.0),  # contributes 10
+        Obj(50.0, None),
+    ]
+    stats = calculations.current_stats(rows)
+    assert isinstance(stats, schemas.CurrentStats)
+    assert stats.current_weighted == 37.0
+    assert stats.weight_done == 50.0
+    assert stats.remaining_weight == 50.0
+
+
+def test_what_if_with_remaining_work():
+    rows = [Obj(40.0, 80.0), Obj(60.0, None)]
+    result = calculations.what_if(rows, target=75.0)
+    assert isinstance(result, schemas.WhatIf)
+    # Need ~71.67 on remaining 60% to reach target
+    assert result.required_avg == 71.67
+    assert result.attainable is True
+
+
+def test_what_if_when_no_remaining_work():
+    rows = [Obj(50.0, 80.0), Obj(50.0, 90.0)]
+    result = calculations.what_if(rows, target=85.0)
+    assert result.required_avg is None
+    assert result.attainable is True
+
+
+def test_validate_weights_messages():
+    rows = [Obj(40.0, 80.0), Obj(30.0, None)]
+    res = calculations.validate_weights(rows)
+    assert isinstance(res, schemas.Validation)
+    assert res.total_weight == 70.0
+    assert res.is_exactly_100 is False
+    assert "You can still add" in res.message
+
+```
+
+###  test_services_unit.py
+
+```py
+from datetime import date
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from backend import models, schemas, services
+
+
+def _session():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    models.Base.metadata.create_all(bind=engine)
+    return sessionmaker(bind=engine)()
+
+
+def test_service_crud_flow():
+    session = _session()
+    repo = services.AssessmentRepository(session)
+    svc = services.AssessmentService(repo)
+
+    payload = schemas.AssessmentIn(
+        title="Midterm",
+        weight_pct=20.0,
+        due_date=date(2025, 11, 1),
+        score_pct=None,
+    )
+    created = svc.create_assessment(payload)
+    assert created.id is not None
+    assert created.title == "Midterm"
+
+    fetched = svc.get_assessment(created.id)
+    assert fetched.id == created.id
+
+    updated = svc.update_assessment(
+        created.id, schemas.AssessmentUpdate(score_pct=85.0)
+    )
+    assert updated.score_pct == 85.0
+
+    all_rows = svc.list_assessments()
+    assert len(all_rows) == 1
+
+    svc.delete_assessment(created.id)
+    assert svc.list_assessments() == []
+
+
+```
+
+###  test_stats_edges.py
 
 ```py
 # tests/test_stats_edges.py
@@ -846,40 +955,30 @@ def test_what_if_when_no_remaining_work(client):
 ```
 
 
-## 📂 backend
+## backend
 
 
-### 📄 __init__.py
+###  __init__.py
 
 ```py
 
 ```
 
-### 📄 app.py
+###  app.py
 
 ```py
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from fastapi.staticfiles import StaticFiles
+from typing import NoReturn
 from pathlib import Path
 
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
-from . import db, models, schemas, calculations
+from . import calculations, db, models, schemas, services
+from .settings import Settings, settings
 
-app = FastAPI(title="Grade & What-If Tracker", version="1.0")
-
-# CORS so the static frontend can call the API
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5500","http://localhost:5500",],  # for local dev; tighten in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Create tables on startup (SQLite)
-models.Base.metadata.create_all(bind=db.engine)
+NOT_FOUND_DETAIL = "Assessment not found"
 
 
 def get_db():
@@ -890,126 +989,180 @@ def get_db():
         session.close()
 
 
-@app.get("/health")
-def health():
-    return {"ok": True}
+def get_assessment_service(
+    session: Session = Depends(get_db),
+) -> services.AssessmentService:
+    repository = services.AssessmentRepository(session)
+    return services.AssessmentService(repository)
 
 
-# ---- CRUD: Assessments -------------------------------------------------------
-
-@app.post("/assessments", response_model=schemas.AssessmentOut)
-def create_assessment(payload: schemas.AssessmentIn, session: Session = Depends(get_db)):
-    obj = models.Assessment(**payload.dict())
-    session.add(obj)
-    session.commit()
-    session.refresh(obj)
-    return obj
+def get_settings() -> Settings:
+    return settings
 
 
-@app.get("/assessments", response_model=list[schemas.AssessmentOut])
-def list_assessments(session: Session = Depends(get_db)):
-    return session.query(models.Assessment).order_by(models.Assessment.due_date).all()
+def _raise_not_found(err: Exception) -> NoReturn:
+    raise HTTPException(status_code=404, detail=NOT_FOUND_DETAIL) from err
 
 
-@app.get("/assessments/{aid}", response_model=schemas.AssessmentOut)
-def get_assessment(aid: int, session: Session = Depends(get_db)):
-    obj = session.get(models.Assessment, aid)
-    if not obj:
-        raise HTTPException(status_code=404, detail="Assessment not found")
-    return obj
+def create_app(app_settings: Settings = settings) -> FastAPI:
+    """Application factory to keep wiring/configuration separated from imports."""
+    app = FastAPI(
+        title=app_settings.app_title,
+        version=app_settings.app_version,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(app_settings.allowed_origins),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    if app_settings.auto_create_tables:
+        @app.on_event("startup")
+        def _create_tables() -> None:
+            models.Base.metadata.create_all(bind=db.engine)
+
+    _register_routes(app)
+    return app
 
 
-@app.put("/assessments/{aid}", response_model=schemas.AssessmentOut)
-def update_assessment(aid: int, payload: schemas.AssessmentUpdate, session: Session = Depends(get_db)):
-    obj = session.get(models.Assessment, aid)
-    if not obj:
-        raise HTTPException(status_code=404, detail="Assessment not found")
-    for k, v in payload.dict(exclude_unset=True).items():
-        setattr(obj, k, v)
-    session.commit()
-    session.refresh(obj)
-    return obj
+def _register_routes(app: FastAPI) -> None:
+    @app.get("/health")
+    def health():
+        return {"ok": True}
+
+    # ---- CRUD: Assessments ---------------------------------------------------
+    @app.post("/assessments", response_model=schemas.AssessmentOut)
+    def create_assessment(
+        payload: schemas.AssessmentIn,
+        service: services.AssessmentService = Depends(get_assessment_service),
+    ):
+        return service.create_assessment(payload)
+
+    @app.get("/assessments", response_model=list[schemas.AssessmentOut])
+    def list_assessments(
+        service: services.AssessmentService = Depends(get_assessment_service),
+    ):
+        return service.list_assessments()
+
+    @app.get("/assessments/{aid}", response_model=schemas.AssessmentOut)
+    def get_assessment(
+        aid: int,
+        service: services.AssessmentService = Depends(get_assessment_service),
+    ):
+        try:
+            return service.get_assessment(aid)
+        except services.AssessmentNotFound as err:
+            _raise_not_found(err)
+
+    @app.put("/assessments/{aid}", response_model=schemas.AssessmentOut)
+    def update_assessment(
+        aid: int,
+        payload: schemas.AssessmentUpdate,
+        service: services.AssessmentService = Depends(get_assessment_service),
+    ):
+        try:
+            return service.update_assessment(aid, payload)
+        except services.AssessmentNotFound as err:
+            _raise_not_found(err)
+
+    @app.delete("/assessments/{aid}")
+    def delete_assessment(
+        aid: int,
+        service: services.AssessmentService = Depends(get_assessment_service),
+    ):
+        try:
+            service.delete_assessment(aid)
+            return {"ok": True}
+        except services.AssessmentNotFound as err:
+            _raise_not_found(err)
+
+    # ---- Stats: current / what-if / validate --------------------------------
+    @app.get("/stats/current", response_model=schemas.CurrentStats)
+    def current_stats(
+        service: services.AssessmentService = Depends(get_assessment_service),
+    ):
+        return calculations.current_stats(service.list_for_stats())
+
+    @app.get("/stats/what-if", response_model=schemas.WhatIf)
+    def what_if(
+        target: float,
+        service: services.AssessmentService = Depends(get_assessment_service),
+    ):
+        return calculations.what_if(service.list_for_stats(), target)
+
+    @app.get("/stats/validate", response_model=schemas.Validation)
+    def validate_weights(
+        service: services.AssessmentService = Depends(get_assessment_service),
+    ):
+        return calculations.validate_weights(service.list_for_stats())
+
+    # ---- Serve the frontend at "/" ------------------------------------------
+    # Points to the sibling "frontend" folder no matter where uvicorn is launched from.
+    frontend_dir = Path(__file__).resolve().parents[1] / "frontend"
+    app.mount(
+        "/",
+        StaticFiles(directory=str(frontend_dir), html=True),
+        name="frontend",
+    )
 
 
-@app.delete("/assessments/{aid}")
-def delete_assessment(aid: int, session: Session = Depends(get_db)):
-    obj = session.get(models.Assessment, aid)
-    if not obj:
-        raise HTTPException(status_code=404, detail="Assessment not found")
-    session.delete(obj)
-    session.commit()
-    return {"ok": True}
-
-# ---- Stats: current / what-if / validate ------------------------------------
-
-@app.get("/stats/current", response_model=schemas.CurrentStats)
-def current_stats(session: Session = Depends(get_db)):
-    rows = session.query(models.Assessment).all()
-    return calculations.current_stats(rows)
-
-
-@app.get("/stats/what-if", response_model=schemas.WhatIf)
-def what_if(target: float, session: Session = Depends(get_db)):
-    rows = session.query(models.Assessment).all()
-    return calculations.what_if(rows, target)
-
-
-@app.get("/stats/validate", response_model=schemas.Validation)
-def validate_weights(session: Session = Depends(get_db)):
-    rows = session.query(models.Assessment).all()
-    return calculations.validate_weights(rows)
-
-# ---- Serve the frontend at "/" ----
-# Points to the sibling "frontend" folder no matter where uvicorn is launched from.
-FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
-app.mount(
-    "/",  # root path
-    StaticFiles(directory=str(FRONTEND_DIR), html=True),
-    name="frontend",
-)
+# Module-level app for ASGI servers and tests
+app = create_app()
 
 ```
 
-### 📄 calculations.py
+###  calculations.py
 
 ```py
-from typing import Iterable
+from typing import Iterable, Protocol
+
+from . import schemas
 
 # rows are objects with: weight_pct (float), score_pct (float|None)
+class AssessmentScore(Protocol):
+    weight_pct: float
+    score_pct: float | None
 
-def _split(rows: Iterable):
+
+def _split(rows: Iterable[AssessmentScore]) -> tuple[list[AssessmentScore], float]:
     scored = [r for r in rows if getattr(r, "score_pct", None) is not None]
     weight_done = sum(float(r.weight_pct) for r in scored)
     return scored, weight_done
 
-def current_stats(rows):
+
+def current_stats(rows: Iterable[AssessmentScore]) -> schemas.CurrentStats:
     scored, weight_done = _split(rows)
     completed = sum(float(r.weight_pct) * float(r.score_pct) for r in scored)
     current_weighted = (completed / 100.0) if weight_done > 0 else 0.0
     remaining = max(0.0, 100.0 - weight_done)
-    return {
-        "current_weighted": round(current_weighted, 2),
-        "weight_done": round(weight_done, 2),
-        "remaining_weight": round(remaining, 2),
-    }
+    return schemas.CurrentStats(
+        current_weighted=round(current_weighted, 2),
+        weight_done=round(weight_done, 2),
+        remaining_weight=round(remaining, 2),
+    )
 
-def what_if(rows, target: float):
+
+def what_if(rows: Iterable[AssessmentScore], target: float) -> schemas.WhatIf:
     stats = current_stats(rows)
-    rem = stats["remaining_weight"]
+    rem = stats.remaining_weight
     if rem == 0:
-        return {
-            "target": target,
-            "required_avg": None,
-            "attainable": stats["current_weighted"] >= target
-        }
-    req = (target - stats["current_weighted"]) * 100.0 / rem
-    return {
-        "target": target,
-        "required_avg": round(req, 2),
-        "attainable": 0 <= req <= 100,
-    }
+        return schemas.WhatIf(
+            target=target,
+            required_avg=None,
+            attainable=stats.current_weighted >= target,
+        )
+    req = (target - stats.current_weighted) * 100.0 / rem
+    return schemas.WhatIf(
+        target=target,
+        required_avg=round(req, 2),
+        attainable=0 <= req <= 100,
+    )
 
-def validate_weights(rows):
+
+def validate_weights(rows: Iterable[AssessmentScore]) -> schemas.Validation:
     total = round(sum(float(r.weight_pct) for r in rows), 2)
     is_exact = abs(total - 100.0) < 1e-6
     if is_exact:
@@ -1018,28 +1171,43 @@ def validate_weights(rows):
         msg = f"Weights sum to {total}%. You can still add {round(100.0 - total, 2)}%."
     else:
         msg = f"Weights exceed 100% (total {total}%). Consider reducing some weights."
-    return {"total_weight": total, "is_exactly_100": bool(is_exact), "message": msg}
+    return schemas.Validation(
+        total_weight=total,
+        is_exactly_100=bool(is_exact),
+        message=msg,
+    )
 
 ```
 
-### 📄 db.py
+###  db.py
 
 ```py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine.url import make_url
 
-DATABASE_URL = "sqlite:///./grades.db"
+from .settings import settings
 
+
+def _connect_args_from_url(database_url: str) -> dict:
+    url = make_url(database_url)
+    # SQLite needs this flag for multi-threaded FastAPI usage; other engines don't.
+    if url.get_backend_name() == "sqlite":
+        return {"check_same_thread": False}
+    return {}
+
+
+DATABASE_URL = settings.database_url
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},  # needed for SQLite + FastAPI threads
+    connect_args=_connect_args_from_url(DATABASE_URL),
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 ```
 
-### 📄 models.py
+###  models.py
 
 ```py
 from sqlalchemy.orm import declarative_base
@@ -1058,7 +1226,7 @@ class Assessment(Base):
 
 ```
 
-### 📄 schemas.py
+###  schemas.py
 
 ```py
 from pydantic import BaseModel, Field
@@ -1105,14 +1273,127 @@ class Validation(BaseModel):
     message: str
 ```
 
+###  services.py
 
-## 📂 backend/.pytest_cache
+```py
+from __future__ import annotations
+
+from typing import Iterable
+
+from sqlalchemy.orm import Session
+
+from . import models, schemas
+
+
+class AssessmentNotFound(Exception):
+    """Raised when an assessment row cannot be located."""
+
+    def __init__(self, assessment_id: int) -> None:
+        super().__init__(f"Assessment {assessment_id} not found")
+        self.assessment_id = assessment_id
+
+
+class AssessmentRepository:
+    """Persistence boundary for assessments."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def list(self, ordered: bool = True) -> list[models.Assessment]:
+        query = self._session.query(models.Assessment)
+        if ordered:
+            query = query.order_by(models.Assessment.due_date)
+        return query.all()
+
+    def get(self, assessment_id: int) -> models.Assessment | None:
+        return self._session.get(models.Assessment, assessment_id)
+
+    def save(self, assessment: models.Assessment) -> models.Assessment:
+        self._session.add(assessment)
+        self._session.commit()
+        self._session.refresh(assessment)
+        return assessment
+
+    def delete(self, assessment: models.Assessment) -> None:
+        self._session.delete(assessment)
+        self._session.commit()
+
+
+class AssessmentService:
+    """Encapsulates CRUD operations for assessments."""
+
+    def __init__(self, repository: AssessmentRepository) -> None:
+        self._repository = repository
+
+    def list_assessments(self, ordered: bool = True) -> list[models.Assessment]:
+        return self._repository.list(ordered)
+
+    def get_assessment(self, assessment_id: int) -> models.Assessment:
+        assessment = self._repository.get(assessment_id)
+        if assessment is None:
+            raise AssessmentNotFound(assessment_id)
+        return assessment
+
+    def create_assessment(self, payload: schemas.AssessmentIn) -> models.Assessment:
+        assessment = models.Assessment(**payload.dict())
+        return self._repository.save(assessment)
+
+    def update_assessment(
+        self, assessment_id: int, payload: schemas.AssessmentUpdate
+    ) -> models.Assessment:
+        assessment = self.get_assessment(assessment_id)
+        for field, value in payload.dict(exclude_unset=True).items():
+            setattr(assessment, field, value)
+        return self._repository.save(assessment)
+
+    def delete_assessment(self, assessment_id: int) -> None:
+        assessment = self.get_assessment(assessment_id)
+        self._repository.delete(assessment)
+
+    def list_for_stats(self) -> Iterable[models.Assessment]:
+        """Internal helper to keep stats queries consistent."""
+        return self.list_assessments(ordered=False)
+
+```
+
+###  settings.py
+
+```py
+from typing import List
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """Application configuration with environment overrides."""
+
+    app_title: str = "Grade & What-If Tracker"
+    app_version: str = "1.0"
+    database_url: str = "sqlite:///./grades.db"
+    allowed_origins: List[str] = [
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ]
+    auto_create_tables: bool = True
+
+    class Config:
+        env_prefix = "GRADEAPP_"
+        env_file = ".env"
+
+
+# Singleton settings instance for the app
+settings = Settings()
+
+```
+
+
+## backend/.pytest_cache
 
 
 
-## 📂 backend/.pytest_cache/v
+## backend/.pytest_cache/v
 
 
 
-## 📂 backend/.pytest_cache/v/cache
+## backend/.pytest_cache/v/cache
 
