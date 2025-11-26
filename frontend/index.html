@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grade & What-If Tracker</title>
+
+  <!-- Minimal favicon so your backend logs stop showing 404 /favicon.ico -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23007aff'/%3E%3Ctext x='32' y='40' font-size='30' text-anchor='middle' fill='white' font-family='Arial, Helvetica, sans-serif'%3EG%3C/text%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+  <h1>Grade &amp; What-If Tracker</h1>
+
+  <!-- Assessment form -->
+  <section class="card" aria-labelledby="add-edit">
+    <h2 id="add-edit" class="sr-only">Add or Update an Assessment</h2>
+    <div id="form" role="form" aria-describedby="form-hint">
+      <label>
+        Title
+        <input id="title" name="title" placeholder="e.g., Midterm" autocomplete="off" required />
+      </label>
+
+      <label>
+        Weight %
+        <input id="weight" name="weight" type="number" inputmode="decimal" min="0" max="100" step="0.01"
+               placeholder="e.g., 20" required />
+      </label>
+
+      <label>
+        Due date
+        <input id="due" name="due" type="date" required />
+      </label>
+
+      <label>
+        Score % (optional)
+        <input id="score" name="score" type="number" inputmode="decimal" min="0" max="100" step="0.01"
+               placeholder="e.g., 85" />
+      </label>
+
+      <!-- type=button so the page doesn’t try to submit/reload -->
+      <button id="add" type="button" aria-label="Add or update assessment">Add / Update</button>
+      <p id="form-hint" class="hint">Enter title, weight (0–100), due date, and score if you have it.</p>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="card" aria-labelledby="stats-title" id="stats">
+    <h2 id="stats-title" class="sr-only">Current Stats</h2>
+    <div>Current: <span id="current">0.00</span>%</div>
+    <div>Remaining weight: <span id="remaining">100.00</span>%</div>
+    <div id="weightsMsg" aria-live="polite"></div>
+  </section>
+
+  <!-- What-if -->
+  <section class="card" aria-labelledby="whatif-title" id="whatif">
+    <h2 id="whatif-title" class="sr-only">What-If Calculator</h2>
+    <label>
+      Target %
+      <input id="target" name="target" type="number" inputmode="decimal" min="0" max="100" step="0.01"
+             placeholder="e.g., 85" />
+    </label>
+    <button id="calc" type="button">What do I need?</button>
+    <div id="answer" aria-live="polite"></div>
+  </section>
+
+  <!-- Table -->
+  <section class="card" aria-labelledby="assessments-title">
+    <h2 id="assessments-title" class="sr-only">Assessments</h2>
+    <table id="table" role="table">
+      <thead>
+        <tr>
+          <th scope="col">Title</th>
+          <th scope="col">Weight</th>
+          <th scope="col">Due</th>
+          <th scope="col">Score</th>
+          <th scope="col" aria-label="Actions"></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Keep the script last (or add defer) so elements exist when JS runs -->
+  <script src="app.js?v=2" defer></script>
+
+
+  <!-- Optional: hide-only-for-screenreaders utility -->
+  <style>
+    .sr-only {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,1px,1px);
+      white-space: nowrap; border: 0;
+    }
+    .hint { font-size: .9rem; color: #555; }
+    #form label { display: inline-flex; flex-direction: column; margin-right: .75rem; margin-bottom: .5rem; }
+  </style>
+  </main>
+</body>
+</html>
+

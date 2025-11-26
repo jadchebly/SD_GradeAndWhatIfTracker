@@ -1,0 +1,210 @@
+/* ===== Light, airy theme ===== */
+:root{
+  --bg: #f7f8fb;                 /* page bg (very light) */
+  --bg-grad: radial-gradient(1200px 600px at 20% -10%, #eef2ff 0%, transparent 60%),
+             radial-gradient(900px 500px at 120% 0%, #eaf7ff 0%, transparent 55%);
+  --card: #ffffff;               /* card bg */
+  --ink: #0f172a;                /* text */
+  --muted: #64748b;              /* secondary text */
+  --primary: #3b82f6;            /* soft blue */
+  --primary-ink: #ffffff;        /* text on primary */
+  --ring: rgba(59,130,246,.25);  /* focus ring */
+  --border: #e6eaf2;             /* hairline borders */
+  --shadow: 0 8px 24px rgba(2,6,23,.08), 0 1px 1px rgba(2,6,23,.04);
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg: #0f172a;
+    --bg-grad: radial-gradient(1200px 600px at 20% -10%, rgba(59,130,246,.12) 0%, transparent 60%),
+               radial-gradient(900px 500px at 120% 0%, rgba(20,184,166,.10) 0%, transparent 55%);
+    --card:#0b1220;
+    --ink:#e5e7eb;
+    --muted:#9aa4b2;
+    --border:#1f2937;
+    --shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+}
+
+/* ===== Page ===== */
+html,body{height:100%}
+body{
+  margin:0;
+  font: 15px/1.6 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--ink);
+  background: var(--bg), var(--bg-grad);
+  background-blend-mode: normal, soft-light;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+.container{
+  max-width: 960px;
+  margin: 48px auto 96px;
+  padding: 0 20px;
+}
+
+/* ===== Headings ===== */
+h1{
+  font-size: clamp(28px, 2.2vw + 12px, 40px);
+  line-height: 1.1;
+  margin: 0 0 16px;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+/* ===== Card ===== */
+.card{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px 18px 14px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(3px);
+  margin: 16px 0;
+}
+
+.card:first-of-type{ margin-top: 8px }
+
+/* ===== Form Grid ===== */
+#form{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 12px;
+  align-items: end;
+}
+#form label{
+  display:flex; flex-direction:column; gap:6px;
+  font-weight:600; color:var(--muted);
+}
+input{
+  border:1px solid var(--border);
+  background:#ffffff;
+  color:var(--ink);
+  border-radius:12px;
+  padding:.55rem .7rem;
+  outline:none;
+  transition: box-shadow .15s ease, border-color .15s ease, background .2s ease;
+}
+input:hover{ background:#fbfcff; }
+input:focus{
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--ring);
+  background:#ffffff;
+}
+
+/* Buttons */
+button{
+  cursor:pointer;
+  border:1px solid var(--border);
+  background:#ffffff;
+  color:#0f172a;
+  border-radius:12px;
+  padding:.55rem .9rem;
+  font-weight:600;
+  transition: transform .05s ease, box-shadow .15s ease, background .2s ease, color .2s ease, border-color .2s ease;
+  box-shadow: 0 1px 1px rgba(2,6,23,.04);
+}
+button:hover{ transform: translateY(-1px); background:#fafcff; }
+button:active{ transform: translateY(0); }
+
+/* Primary actions */
+#add, #calc{
+  background: var(--primary);
+  color: var(--primary-ink);
+  border-color: transparent;
+  box-shadow: 0 8px 18px rgba(59,130,246,.28);
+}
+#add:hover, #calc:hover{
+  box-shadow: 0 10px 22px rgba(59,130,246,.34);
+}
+
+/* Secondary / table action buttons */
+button.edit{
+  background: #f3f7ff;
+  color: #2563eb;
+  border-color: #c7d8ff;
+}
+button.edit:hover{
+  background: #ecf3ff;
+}
+button.del{
+  background: #fff5f5;
+  color: #ef4444;
+  border-color: #ffd4d4;
+}
+button.del:hover{
+  background: #ffecec;
+}
+
+/* Cancel edit pill (if present) */
+#cancel-edit{ margin-left:.5rem; opacity:.9 }
+
+/* ===== Stats & What-if layout ===== */
+#stats{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  align-items:center;
+}
+#weightsMsg{ grid-column: 1 / -1; color: var(--muted); }
+
+#whatif{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items:end;
+}
+#whatif label{ display:flex; flex-direction:column; gap:6px; color:var(--muted); font-weight:600 }
+#answer{ margin-top: 8px; grid-column: 1 / -1 }
+
+/* ===== Table ===== */
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  overflow:hidden;
+  border-radius: 14px;
+  border:1px solid var(--border);
+  background: var(--card);
+}
+thead th{
+  text-align:left;
+  padding:12px 14px;
+  background: linear-gradient(180deg, rgba(99,102,241,.06), transparent);
+  font-weight:700;
+  color: var(--muted);
+  border-bottom:1px solid var(--border);
+}
+tbody td{
+  padding:14px;
+  border-top:1px solid var(--border);
+}
+tbody tr:hover{
+  background: rgba(2,6,23,.03);
+}
+
+/* Empty state row */
+tr.empty td{
+  text-align:center;
+  color:var(--muted);
+  padding:22px;
+}
+
+/* ===== Utilities ===== */
+.hint{ font-size:.92rem; color:var(--muted); margin:.25rem 0 0 }
+.sr-only{
+  position:absolute !important; width:1px; height:1px;
+  padding:0; margin:-1px; overflow:hidden; clip: rect(0,0,1px,1px);
+  white-space:nowrap; border:0;
+}
+
+/* ===== Responsive tweaks ===== */
+@media (max-width: 760px){
+  #form{ grid-template-columns: 1fr 1fr; }
+  #stats{ grid-template-columns: 1fr; }
+  #whatif{ grid-template-columns: 1fr; }
+}
+
+
+
