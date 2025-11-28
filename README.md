@@ -60,9 +60,32 @@ Deployment in CI
 - On successful test + build, the workflow will push the Docker image to GHCR under `ghcr.io/<OWNER>/<REPO>:latest` and `ghcr.io/<OWNER>/<REPO>:<sha>`.
 - The deploy job only runs for pushes to the `main` branch (see `.github/workflows/ci.yml`).
 
-Secrets and extra providers
+Deployment in CI
 
-- Pushing to GHCR uses the built-in `GITHUB_TOKEN`. The workflow sets `packages: write` permission so the token can publish packages.
-- If you want CI to also deploy to other cloud providers (Heroku, AWS ECR/ECS, GCR, DockerHub), tell me which provider you prefer and I will add the provider-specific steps. Those usually require adding repository secrets (e.g. `HEROKU_API_KEY` / `HEROKU_APP_NAME`, `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN`, or cloud service credentials) in the repo `Settings -> Secrets`.
+- On successful test + build, the workflow will build the Docker image. The deploy job runs only for pushes to the `main` branch (see `.github/workflows/ci.yml`).
+- The current workflow has been updated to push the container image to Azure Container Registry (ACR). It will push:
+	- `${ACR_NAME}.azurecr.io/<OWNER>/<REPO>:latest`
+	- `${ACR_NAME}.azurecr.io/<OWNER>/<REPO>:<sha>`
 
-If you want a different deployment target or automatic releases (tags), I can add that next — tell me which cloud provider you want to deploy to and I will update the workflow and documentation.
+Azure secrets / setup
+
+The deploy job uses an Azure service principal to authenticate. You must add the following repository secrets (Repository -> Settings -> Secrets -> Actions):
+
+- `AZURE_CREDENTIALS` — JSON string with the Azure service principal credentials. Create it with the Azure CLI like:
+
+	```bash
+	az ad sp create-for-rbac --name "github-actions-acr" --role acrpush --scopes /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RG>/providers/Microsoft.ContainerRegistry/registries/<ACR_NAME>
+	```
+
+	Take the JSON output from the command and paste it into the `AZURE_CREDENTIALS` secret. The JSON should contain `clientId`, `clientSecret`, `subscriptionId`, and `tenantId`.
+
+- `ACR_NAME` — the short name of your Azure Container Registry (for example, `myregistry`); the workflow uses `${ACR_NAME}.azurecr.io` as the registry host.
+
+Notes:
+
+- The `azure/login` action uses the `AZURE_CREDENTIALS` secret to authenticate. The workflow then runs `az acr login --name $ACR_NAME` to log Docker into the registry before pushing.
+- For tighter security you should protect the `main` branch in GitHub (Settings -> Branches -> Protect branch) so only reviewed PRs can be merged and trigger deploys.
+
+Other providers
+
+If you prefer a different Azure target (App Service, Azure Container Instances, AKS, or Web App for Containers) I can add the specific deployment steps — most will reuse the same `AZURE_CREDENTIALS` secret and require an additional resource name (e.g. `AZURE_WEBAPP_NAME`).
