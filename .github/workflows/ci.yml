@@ -67,23 +67,40 @@ jobs:
     needs: build
     # only run deploy when pushed to main branch
     if: github.ref == 'refs/heads/main'
-    env:
-      ACR_NAME: ${{ secrets.ACR_NAME }}
-      IMAGE_NAME: ${{ github.repository }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate Azure secrets
+        run: |
+          set -e
+          if [ -z "${ACR_NAME}" ]; then
+            echo "ERROR: Repository secret ACR_NAME is not set or is empty. Add it in Settings -> Secrets -> Actions." >&2
+            exit 1
+          fi
+          if ! echo "${ACR_NAME}" | grep -Eq '^[a-z0-9]{5,50}$'; then
+            echo "ERROR: ACR_NAME must be 5-50 lowercase alphanumeric characters (only a-z,0-9). Current: '${ACR_NAME}'" >&2
+            exit 1
+          fi
+          if [ -z "${AZURE_CREDENTIALS}" ]; then
+            echo "ERROR: Repository secret AZURE_CREDENTIALS is not set. Create a service principal and add its JSON output as AZURE_CREDENTIALS." >&2
+            exit 1
+          fi
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Azure Login
         uses: azure/login@v1
         with:
-          # `AZURE_CREDENTIALS` should be a JSON secret containing: clientId, clientSecret, subscriptionId, tenantId
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Login to ACR
         run: |
           echo "Logging into ACR: $ACR_NAME"
           az acr login --name "$ACR_NAME"
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
 
       - name: Build and push image to ACR
         uses: docker/build-push-action@v4
@@ -92,10 +109,12 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
-            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ secrets.ACR_NAME }}.azurecr.io/${{ github.repository }}:latest
+            ${{ secrets.ACR_NAME }}.azurecr.io/${{ github.repository }}:${{ github.sha }}
 
       - name: Deployment info
         run: |
-          echo "Image pushed to ACR: $ACR_NAME.azurecr.io/${{ env.IMAGE_NAME }}:latest"
+          echo "Image pushed to ACR: ${ACR_NAME}.azurecr.io/${{ github.repository }}:latest"
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
 
