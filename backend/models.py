@@ -11,3 +11,8 @@ class Assessment(Base):
     weight_pct = Column(Float, nullable=False)       # e.g., 20.0
     due_date = Column(Date, nullable=False)
     score_pct = Column(Float, nullable=True)         # None until graded
+
+
+
+
+#10452
