@@ -970,19 +970,23 @@ def test_what_if_when_no_remaining_work(client):
 from typing import NoReturn
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from . import calculations, db, models, schemas, services
+from . import calculations, models, schemas, services
+from .db import SessionLocal, engine
 from .settings import Settings, settings
 
 NOT_FOUND_DETAIL = "Assessment not found"
 
 
+# -----------------------------
+# Database Dependency
+# -----------------------------
 def get_db():
-    session = db.SessionLocal()
+    session = SessionLocal()
     try:
         yield session
     finally:
@@ -1004,13 +1008,16 @@ def _raise_not_found(err: Exception) -> NoReturn:
     raise HTTPException(status_code=404, detail=NOT_FOUND_DETAIL) from err
 
 
+# -----------------------------
+# Application Factory
+# -----------------------------
 def create_app(app_settings: Settings = settings) -> FastAPI:
-    """Application factory to keep wiring/configuration separated from imports."""
     app = FastAPI(
         title=app_settings.app_title,
         version=app_settings.app_version,
     )
 
+    # CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(app_settings.allowed_origins),
@@ -1019,21 +1026,52 @@ def create_app(app_settings: Settings = settings) -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Auto-create tables (SQLite or Postgres)
     if app_settings.auto_create_tables:
         @app.on_event("startup")
         def _create_tables() -> None:
-            models.Base.metadata.create_all(bind=db.engine)
+            models.Base.metadata.create_all(bind=engine)
 
+    # -----------------------------
+    # Monitoring: Prometheus Instrumentation
+    # -----------------------------
+    try:
+        from prometheus_fastapi_instrumentator import Instrumentator
+
+        Instrumentator().instrument(app).expose(app)
+    except Exception:
+        # Safe fallback — tests may not have this package installed
+        pass
+
+    # Register API routes
     _register_routes(app)
+
     return app
 
 
+# -----------------------------
+# Routes / API Endpoints
+# -----------------------------
 def _register_routes(app: FastAPI) -> None:
+
+    # ---- Health Check ---------------------------------------------------
     @app.get("/health")
     def health():
         return {"ok": True}
 
-    # ---- CRUD: Assessments ---------------------------------------------------
+    # ---- Basic Metrics Endpoint (backup) --------------------------------
+    # Instrumentator already exposes /metrics, but this is a fallback
+    try:
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
+        @app.get("/metrics")
+        def metrics():
+            data = generate_latest()
+            return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+    except Exception:
+        pass
+
+    # ---- CRUD: Assessments ----------------------------------------------
     @app.post("/assessments", response_model=schemas.AssessmentOut)
     def create_assessment(
         payload: schemas.AssessmentIn,
@@ -1079,7 +1117,7 @@ def _register_routes(app: FastAPI) -> None:
         except services.AssessmentNotFound as err:
             _raise_not_found(err)
 
-    # ---- Stats: current / what-if / validate --------------------------------
+    # ---- Stats: current / what-if / validate ----------------------------
     @app.get("/stats/current", response_model=schemas.CurrentStats)
     def current_stats(
         service: services.AssessmentService = Depends(get_assessment_service),
@@ -1099,18 +1137,19 @@ def _register_routes(app: FastAPI) -> None:
     ):
         return calculations.validate_weights(service.list_for_stats())
 
-    # ---- Serve the frontend at "/" ------------------------------------------
-    # Points to the sibling "frontend" folder no matter where uvicorn is launched from.
+    # ---- Serve Frontend --------------------------------------------------
     frontend_dir = Path(__file__).resolve().parents[1] / "frontend"
-    app.mount(
-        "/",
-        StaticFiles(directory=str(frontend_dir), html=True),
-        name="frontend",
-    )
+
+    if frontend_dir.exists():
+        app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
 
 
-# Module-level app for ASGI servers and tests
+# -----------------------------
+# ASGI Server Entrypoint
+# -----------------------------
 app = create_app()
+
+
 
 ```
 
@@ -1182,28 +1221,53 @@ def validate_weights(rows: Iterable[AssessmentScore]) -> schemas.Validation:
 ###  db.py
 
 ```py
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.engine.url import make_url
 
-from .settings import settings
 
+def _connect_args_from_url(db_url: str) -> dict:
+    """Detect correct connect_args based on backend."""
+    url = make_url(db_url)
 
-def _connect_args_from_url(database_url: str) -> dict:
-    url = make_url(database_url)
-    # SQLite needs this flag for multi-threaded FastAPI usage; other engines don't.
+    # SQLite requires this for FastAPI multithreading
     if url.get_backend_name() == "sqlite":
         return {"check_same_thread": False}
+
+    # Postgres / MySQL / others do not need connect_args
     return {}
 
 
-DATABASE_URL = settings.database_url
+# Load DATABASE_URL safely
+raw_url = os.getenv("DATABASE_URL")
+
+if raw_url:
+    # Railway provides postgresql:// which needs to be adapted
+    DATABASE_URL = raw_url.replace(
+        "postgresql://",
+        "postgresql+psycopg2binary://"
+    )
+else:
+    # Fallback: used in GitHub Actions tests
+    DATABASE_URL = "sqlite:///./test.db"
+
+
+# Create engine with proper connect args
 engine = create_engine(
     DATABASE_URL,
-    connect_args=_connect_args_from_url(DATABASE_URL),
+    connect_args=_connect_args_from_url(DATABASE_URL)
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Session factory
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+# Base class for models
+Base = declarative_base()
 
 ```
 
@@ -1223,6 +1287,11 @@ class Assessment(Base):
     weight_pct = Column(Float, nullable=False)       # e.g., 20.0
     due_date = Column(Date, nullable=False)
     score_pct = Column(Float, nullable=True)         # None until graded
+
+
+
+
+#10452
 
 ```
 

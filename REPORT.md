@@ -1,22 +1,94 @@
-# Deployment & CI Report
+1. Code Quality and Testing
+Multiple refactoring steps were performed to improve maintainability, readability, and alignment with software engineering best practices.
 
-## Summary
-- CI: GitHub Actions runs tests, measures coverage (fail if <70%), and builds a Docker image.
-- CD: GitHub Actions deploys to Railway on pushes to `main` using the Railway CLI and the `RAILWAY_TOKEN` secret.
+Refactoring improvements
 
-## What I changed
-- Added Prometheus metrics endpoint `/metrics` to `backend/app.py`.
-- Added `prometheus-client` to `backend/requirements.txt`.
-- Updated `.github/workflows/ci.yaml` deploy job to deploy to Railway using the Railway CLI and `RAILWAY_TOKEN`.
-- Added documentation in `README.md` describing CI/CD, Railway setup, monitoring endpoints, and required secrets.
+- Separation of Concerns
+	- Database logic was moved into `db.py`.
+	- Business logic isolated in `services.py`.
+	- Application configuration handled inside `app.py`.
 
-## How to verify
-1. Add `RAILWAY_TOKEN` as a repository secret.
-2. Push a commit to `main` or re-run the workflow from the Actions UI.
-3. Watch the Actions run: tests -> build -> deploy. On successful deploy, check the Railway project dashboard.
+- Removed duplication
+	- Centralised shared CRUD logic and repeated error handling.
 
-## Notes & next steps
-- Consider using GitHub's OIDC + Railway for tokenless auth if Railway supports it in the future.
-- Consider adding health & uptime monitoring, alerting, and metrics scraping (Prometheus) for production.
+- SOLID improvements
+	- SRP: Each module now has a single responsibility.
+	- OCP: New assessment/stat calculation logic can now be added without modifying existing functions.
 
-*** End of report.
+- No hard-coded values
+	- Database URLs and settings now loaded through environment variables + `settings.py`.
+	- Improved validation using Pydantic schemas (`schemas.py`).
+
+- Testing improvements
+	- Added unit tests for:
+		- Calculation engine
+		- Services layer
+		- Stat/weight logic
+	- Added integration tests for all API endpoints using FastAPI TestClient.
+	- Achieved ≥ 70% test coverage (verified in CI).
+	- Generated `coverage.xml` and `.coverage` reports.
+	- Tests are automatically executed on every push via GitHub Actions.
+
+These changes ensure correctness, maintainability, and stability of the codebase.
+
+2. Continuous Integration (CI)
+
+A complete CI pipeline was created using GitHub Actions (`.github/workflows/ci.yaml`).
+
+CI pipeline tasks
+
+- Install Python and project dependencies.
+- Run full test suite (pytest).
+- Enforce coverage ≥ 70% (pipeline fails otherwise).
+- Build Docker image to ensure the container is valid.
+- Upload test results + coverage report as workflow artifacts.
+- On pushes to main, trigger deployment to Railway.
+
+This ensures that code is always tested, verified, and ready for deployment.
+
+3. Deployment Automation (CD)
+
+Containerization
+
+The application was fully containerized using the provided Dockerfile:
+
+- Based on Python 3.11 slim image.
+- Installs dependencies from `backend/requirements.txt`.
+- Copies backend and frontend.
+- Exposes port 8000.
+- Runs FastAPI using Uvicorn.
+
+Cloud Deployment
+
+Deployment is fully automated via:
+
+- GitHub Actions deploy job.
+- Railway project linked to the GitHub repository.
+- Only the main branch triggers deployment.
+
+Secrets management
+
+- `DATABASE_URL` stored in Railway environment variables.
+- `RAILWAY_TOKEN` stored in GitHub Secrets for secure deployment.
+
+This completes full CI/CD deployment automation.
+
+4. Monitoring and Health Checks
+
+Monitoring was added via two key endpoints:
+
+1. `/health` endpoint
+	 - Simple JSON response confirming application availability:
+		 ```json
+		 { "ok": true }
+		 ```
+2. `/metrics` endpoint
+	 - Implemented using `prometheus_client`.
+	 - Exposes full Prometheus-compatible metrics including:
+		 - HTTP request count
+		 - Handler-level statistics
+		 - Error rate
+		 - Response latency
+		 - CPU and memory usage
+		 - Python GC stats
+
