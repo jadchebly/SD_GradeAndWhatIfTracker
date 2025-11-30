@@ -68,21 +68,17 @@ jobs:
     name: Deploy to Railway
     runs-on: ubuntu-latest
     needs: build
-    # only run deploy when pushed to main branch
     if: github.ref == 'refs/heads/main'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Railway secret
-        run: |
-          set -e
-          if [ -z "${RAILWAY_TOKEN}" ]; then
-            echo "ERROR: Repository secret RAILWAY_TOKEN is not set. Add it in Settings -> Secrets -> Actions." >&2
-            exit 1
-          fi
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Deploy to Railway (official action)
+        uses: railwayapp/railway-action@v1
+        with:
+          railwayToken: ${{ secrets.RAILWAY_TOKEN }}
+
 
       - name: Set up Node.js (for Railway CLI)
         uses: actions/setup-node@v4
