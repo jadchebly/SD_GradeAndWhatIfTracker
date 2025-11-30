@@ -1,63 +1,144 @@
-name: CI
 
-permissions:
-  contents: read
-  packages: write
+
+name: CI / CD Pipeline
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
   pull_request:
-    branches: ["main"]
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
-    name: Run tests and coverage
+
+  # =====================================================
+  # 1) CODE QUALITY — Formatting (Black)
+  # =====================================================
+  format:
+    name: Check Code Format (Black)
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Black
+        run: pip install black
+
+      - name: Run Black check
+        run: black --check --diff backend tests
+
+  # =====================================================
+  # 2) LINTING — Flake8
+  # =====================================================
+  lint:
+    name: Lint Code (Flake8)
+    runs-on: ubuntu-latest
+    needs: format
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+      - name: Install flake8
+        run: pip install flake8
 
-      - name: Run tests with coverage
-        run: |
-          pytest --cov=backend --cov-report=xml --cov-fail-under=70
+      - name: Run Flake8
+        run: flake8 backend tests --count --statistics
 
-      - name: Upload test artifacts
-        if: always()
+  # =====================================================
+  # 3) SECURITY — Bandit
+  # =====================================================
+  security:
+    name: Security Scan (Bandit)
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        run: bandit -r backend -f txt -o bandit-report.txt || true
+
+      - name: Upload Bandit Report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-artifacts
+          name: bandit-report
+          path: bandit-report.txt
+
+  # =====================================================
+  # 4) TESTS + COVERAGE
+  # =====================================================
+  tests:
+    name: Run Tests + Coverage
+    runs-on: ubuntu-latest
+    needs: security
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run pytest with coverage
+        run: |
+          pytest \
+            --cov=backend \
+            --cov-report=xml \
+            --cov-report=term \
+            --cov-fail-under=70
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
           path: coverage.xml
 
+  # =====================================================
+  # 5) DOCKER BUILD
+  # =====================================================
   build:
-    name: Build Docker image
+    name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: test
+    needs: tests
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        run: docker build -t grade-tracker:ci -f Dockerfile .
 
-      - name: Build image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          tags: app:ci
-
+  # =====================================================
+  # 6) DEPLOY ON MAIN — RAILWAY
+  # =====================================================
   deploy:
     name: Deploy to Railway
     runs-on: ubuntu-latest
@@ -65,14 +146,27 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Install Railway CLI
-        run: npm install -g @railway/cli
+        run: npm i -g @railway/cli
 
+      - name: Deploy using Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --ci --no-gitignore
+
+  # =====================================================
+  # 7) FINAL STATUS
+  # =====================================================
+  done:
+    name: Pipeline Complete
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    steps:
+      - run: echo "All CI/CD steps completed successfully! 🎉"
