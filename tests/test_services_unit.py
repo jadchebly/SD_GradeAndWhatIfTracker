@@ -45,4 +45,3 @@ def test_service_crud_flow():
 
     svc.delete_assessment(created.id)
     assert svc.list_assessments() == []
-

@@ -2,6 +2,7 @@ from typing import Iterable, Protocol
 
 from . import schemas
 
+
 # rows are objects with: weight_pct (float), score_pct (float|None)
 class AssessmentScore(Protocol):
     weight_pct: float

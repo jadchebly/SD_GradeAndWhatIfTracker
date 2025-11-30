@@ -21,27 +21,17 @@ raw_url = os.getenv("DATABASE_URL")
 
 if raw_url:
     # Railway provides postgresql:// which needs to be adapted
-    DATABASE_URL = raw_url.replace(
-        "postgresql://",
-        "postgresql+psycopg2binary://"
-    )
+    DATABASE_URL = raw_url.replace("postgresql://", "postgresql+psycopg2binary://")
 else:
     # Fallback: used in GitHub Actions tests
     DATABASE_URL = "sqlite:///./test.db"
 
 
 # Create engine with proper connect args
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=_connect_args_from_url(DATABASE_URL)
-)
+engine = create_engine(DATABASE_URL, connect_args=_connect_args_from_url(DATABASE_URL))
 
 # Session factory
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for models
 Base = declarative_base()

@@ -1,6 +1,7 @@
 # tests/test_api_assessments.py
 from datetime import date
 
+
 def make_assessment(client, title, weight, due, score=None):
     payload = {"title": title, "weight_pct": weight, "due_date": due}
     if score is not None:
@@ -8,6 +9,7 @@ def make_assessment(client, title, weight, due, score=None):
     r = client.post("/assessments", json=payload)
     assert r.status_code == 200, r.text
     return r.json()
+
 
 def test_crud_flow(client):
     # Create

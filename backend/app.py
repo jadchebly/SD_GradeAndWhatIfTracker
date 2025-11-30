@@ -59,6 +59,7 @@ def create_app(app_settings: Settings = settings) -> FastAPI:
 
     # Auto-create tables (SQLite or Postgres)
     if app_settings.auto_create_tables:
+
         @app.on_event("startup")
         def _create_tables() -> None:
             models.Base.metadata.create_all(bind=engine)
@@ -99,6 +100,7 @@ def _register_routes(app: FastAPI) -> None:
         def metrics():
             data = generate_latest()
             return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+
     except Exception:
         pass
 
@@ -172,12 +174,12 @@ def _register_routes(app: FastAPI) -> None:
     frontend_dir = Path(__file__).resolve().parents[1] / "frontend"
 
     if frontend_dir.exists():
-        app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+        app.mount(
+            "/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend"
+        )
 
 
 # -----------------------------
 # ASGI Server Entrypoint
 # -----------------------------
 app = create_app()
-
-
