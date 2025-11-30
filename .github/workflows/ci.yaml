@@ -69,47 +69,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
-
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Railway (official action)
-        uses: railwayapp/railway-action@v1
-        with:
-          railwayToken: ${{ secrets.RAILWAY_TOKEN }}
-
-
-      - name: Set up Node.js (for Railway CLI)
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 18
 
       - name: Install Railway CLI
-        run: |
-          npm install -g @railway/cli
+        run: npm install -g @railway/cli
 
-      - name: Check Railway token (authenticate via env)
-        run: |
-          set -e
-          echo "Checking Railway token..."
-          # railway CLI reads RAILWAY_TOKEN from environment for CI usage
-          if ! railway whoami >/dev/null 2>&1; then
-            echo "ERROR: Railway authentication failed. Ensure RAILWAY_TOKEN secret is correct." >&2
-            railway whoami || true
-            exit 1
-          fi
+      - name: Deploy using Railway CLI
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Deploy to Railway
-        run: |
-          # Use non-interactive CI deploy; this will deploy the repo using Railway's config
-          railway up --ci --detach || railway deploy --ci
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Deployment info
-        run: |
-          echo "Railway deploy attempted. Check Railway project linked to this repository for current status."
+        run: railway up --ci --yes
 
