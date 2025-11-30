@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine.url import make_url
+import os
 
 from .settings import settings
 
@@ -13,10 +14,11 @@ def _connect_args_from_url(database_url: str) -> dict:
     return {}
 
 
-DATABASE_URL = settings.database_url
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=_connect_args_from_url(DATABASE_URL),
+DATABASE_URL = os.getenv("DATABASE_URL").replace(
+    "postgresql://",
+    "postgresql+psycopg2binary://"
 )
+
+engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

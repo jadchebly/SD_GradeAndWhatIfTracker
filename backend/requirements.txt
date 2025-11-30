@@ -8,3 +8,4 @@ httpx
 pytest-cov
 prometheus-client
 psycopg2-binary
+python-dotenv
