@@ -9,3 +9,4 @@ pytest-cov
 prometheus-client
 psycopg2-binary
 python-dotenv
+prometheus-fastapi-instrumentator
