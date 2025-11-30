@@ -79,4 +79,5 @@ jobs:
       - name: Deploy via Railway CLI
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --ci --no-gitignore
+        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --ci --no-gitignore
+

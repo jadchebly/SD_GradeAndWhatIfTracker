@@ -3,16 +3,20 @@ FROM python:3.11-slim
 # Create app directory
 WORKDIR /app
 
-# Install runtime dependencies
+# Install backend dependencies first (better caching)
 COPY backend/requirements.txt ./requirements.txt
 RUN python -m pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy backend code
 COPY backend ./backend
 
-# Expose default port for uvicorn
+# Copy frontend (static files)
+COPY frontend ./frontend
+
+# Expose port
 EXPOSE 8000
 
-# Default command (can be overridden in docker run)
+# Start FastAPI using Uvicorn
 CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+
