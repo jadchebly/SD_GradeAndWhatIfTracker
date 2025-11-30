@@ -6,14 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from . import calculations, db, models, schemas, services
+from . import calculations, models, schemas, services
+from .db import SessionLocal, engine  # UPDATED: import from db correctly
 from .settings import Settings, settings
 
 NOT_FOUND_DETAIL = "Assessment not found"
 
 
 def get_db():
-    session = db.SessionLocal()
+    session = SessionLocal()
     try:
         yield session
     finally:
@@ -53,7 +54,7 @@ def create_app(app_settings: Settings = settings) -> FastAPI:
     if app_settings.auto_create_tables:
         @app.on_event("startup")
         def _create_tables() -> None:
-            models.Base.metadata.create_all(bind=db.engine)
+            models.Base.metadata.create_all(bind=engine)
 
     _register_routes(app)
     return app
@@ -70,11 +71,9 @@ def _register_routes(app: FastAPI) -> None:
 
         @app.get("/metrics")
         def metrics():
-            # Return default Prometheus metrics collected by prometheus_client
             data = generate_latest()
             return Response(content=data, media_type=CONTENT_TYPE_LATEST)
     except Exception:
-        # prometheus_client may not be installed in test environments; silently skip
         pass
 
     # ---- CRUD: Assessments ---------------------------------------------------
@@ -143,8 +142,7 @@ def _register_routes(app: FastAPI) -> None:
     ):
         return calculations.validate_weights(service.list_for_stats())
 
-    # ---- Serve the frontend at "/" ------------------------------------------
-    # Points to the sibling "frontend" folder no matter where uvicorn is launched from.
+    # Serve frontend
     frontend_dir = Path(__file__).resolve().parents[1] / "frontend"
     app.mount(
         "/",
@@ -153,5 +151,6 @@ def _register_routes(app: FastAPI) -> None:
     )
 
 
-# Module-level app for ASGI servers and tests
+# ASGI entrypoint
 app = create_app()
+
