@@ -82,3 +82,25 @@ Provides:
 - CPU/memory metrics
 - Python runtime & GC metrics
 - Per-endpoint stats
+
+Monitoring locally with Prometheus + Grafana
+
+I added a local monitoring stack you can run with Docker Compose. It will run the app, Prometheus and Grafana and scrape `/metrics` from the app.
+
+Files added:
+- `monitoring/prometheus/prometheus.yml` — Prometheus scrape config (scrapes `gradeapp:8000/metrics`).
+- `monitoring/docker-compose.monitoring.yml` — Docker Compose file to run the app, Prometheus and Grafana together.
+
+Run the monitoring stack locally:
+
+```bash
+# build and start the app + prometheus + grafana
+docker compose -f monitoring/docker-compose.monitoring.yml up --build
+
+# Prometheus UI: http://localhost:9090
+# Grafana UI: http://localhost:3000 (default user:password is admin:admin for first login)
+```
+
+After Grafana starts, add Prometheus as a data source pointing to `http://prometheus:9090` or `http://localhost:9090`.
+
+I included basic Prometheus instrumentation in the app (request count, latency, exceptions). The `/metrics` endpoint is exposed at `/metrics` and will be scraped by Prometheus.

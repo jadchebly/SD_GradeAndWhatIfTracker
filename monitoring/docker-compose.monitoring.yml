@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  gradeapp:
+    build: .
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - GRADEAPP_AUTO_CREATE_TABLES=true
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - gradeapp
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+networks:
+  default:
+    name: gradeapp-monitoring
