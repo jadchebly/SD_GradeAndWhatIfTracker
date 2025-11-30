@@ -63,6 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -78,6 +79,4 @@ jobs:
       - name: Deploy via Railway CLI
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
-        run: |
-          railway up --service $RAILWAY_SERVICE_ID --ci --no-confirm
+        run: railway up --ci --no-gitignore
