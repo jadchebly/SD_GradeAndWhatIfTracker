@@ -93,16 +93,23 @@ jobs:
         run: |
           npm install -g @railway/cli
 
-      - name: Login to Railway
+      - name: Check Railway token (authenticate via env)
         run: |
-          railway login --apiKey "${RAILWAY_TOKEN}"
+          set -e
+          echo "Checking Railway token..."
+          # railway CLI reads RAILWAY_TOKEN from environment for CI usage
+          if ! railway whoami >/dev/null 2>&1; then
+            echo "ERROR: Railway authentication failed. Ensure RAILWAY_TOKEN secret is correct." >&2
+            railway whoami || true
+            exit 1
+          fi
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deploy to Railway
         run: |
           # Use non-interactive CI deploy; this will deploy the repo using Railway's config
-          railway up --ci --detach || railway deploy --ci || true
+          railway up --ci --detach || railway deploy --ci
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
