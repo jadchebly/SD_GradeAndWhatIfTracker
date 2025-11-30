@@ -1,7 +1,7 @@
 from typing import NoReturn
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -63,6 +63,19 @@ def _register_routes(app: FastAPI) -> None:
     @app.get("/health")
     def health():
         return {"ok": True}
+    
+    # Prometheus metrics endpoint
+    try:
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
+        @app.get("/metrics")
+        def metrics():
+            # Return default Prometheus metrics collected by prometheus_client
+            data = generate_latest()
+            return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+    except Exception:
+        # prometheus_client may not be installed in test environments; silently skip
+        pass
 
     # ---- CRUD: Assessments ---------------------------------------------------
     @app.post("/assessments", response_model=schemas.AssessmentOut)

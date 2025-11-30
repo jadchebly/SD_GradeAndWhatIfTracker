@@ -57,35 +57,34 @@ docker build -t grade-tracker:local -f Dockerfile .
 
 Deployment in CI
 
-- On successful test + build, the workflow will push the Docker image to GHCR under `ghcr.io/<OWNER>/<REPO>:latest` and `ghcr.io/<OWNER>/<REPO>:<sha>`.
-- The deploy job only runs for pushes to the `main` branch (see `.github/workflows/ci.yml`).
+- On successful test + build, the workflow will build the Docker image and then run a deploy job when changes are pushed to the `main` branch.
 
-Deployment in CI
+Railway deployment
 
-- On successful test + build, the workflow will build the Docker image. The deploy job runs only for pushes to the `main` branch (see `.github/workflows/ci.yml`).
-- The current workflow has been updated to push the container image to Azure Container Registry (ACR). It will push:
-	- `${ACR_NAME}.azurecr.io/<OWNER>/<REPO>:latest`
-	- `${ACR_NAME}.azurecr.io/<OWNER>/<REPO>:<sha>`
+This repository deploys to Railway from the `main` branch using the Railway CLI. The `deploy` job in `.github/workflows/ci.yaml` will:
 
-Azure secrets / setup
+- Validate that the `RAILWAY_TOKEN` repository secret is present.
+- Install the Railway CLI and log in using the token.
+- Run `railway up --ci --detach` to deploy the current repository to the Railway project linked to this repo.
 
-The deploy job uses an Azure service principal to authenticate. You must add the following repository secrets (Repository -> Settings -> Secrets -> Actions):
+Required GitHub secret for Railway (Repository -> Settings -> Secrets -> Actions):
 
-- `AZURE_CREDENTIALS` — JSON string with the Azure service principal credentials. Create it with the Azure CLI like:
+- `RAILWAY_TOKEN` — a Railway API token with deploy permissions. Create it in Railway (Account -> Settings -> API Keys) or via the Railway dashboard.
 
-	```bash
-	az ad sp create-for-rbac --name "github-actions-acr" --role acrpush --scopes /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RG>/providers/Microsoft.ContainerRegistry/registries/<ACR_NAME>
-	```
+Railway setup
 
-	Take the JSON output from the command and paste it into the `AZURE_CREDENTIALS` secret. The JSON should contain `clientId`, `clientSecret`, `subscriptionId`, and `tenantId`.
+1. Create or sign in to your Railway account at https://railway.app.
+2. Create a new project and connect your GitHub repository (the Railway UI will guide you through linking the repository to a project and environment).
+3. In Railway, create any necessary environment variables (the UI provides a place to add them). Mirror these in GitHub Secrets as needed for the workflow.
+4. Create a Railway API token (Account -> Settings -> API Keys) and add it to this repository as the `RAILWAY_TOKEN` secret.
 
-- `ACR_NAME` — the short name of your Azure Container Registry (for example, `myregistry`); the workflow uses `${ACR_NAME}.azurecr.io` as the registry host.
+Monitoring endpoints
 
-Notes:
+- `/health` — quick health check; returns `{ "ok": true }`.
+- `/metrics` — Prometheus metrics endpoint (provided by `prometheus-client`).
 
-- The `azure/login` action uses the `AZURE_CREDENTIALS` secret to authenticate. The workflow then runs `az acr login --name $ACR_NAME` to log Docker into the registry before pushing.
-- For tighter security you should protect the `main` branch in GitHub (Settings -> Branches -> Protect branch) so only reviewed PRs can be merged and trigger deploys.
+Secrets and branch protection
 
-Other providers
+- Protect the `main` branch (Settings -> Branches -> Protect branch) to require reviews/checks before merging. The deploy job only runs on `main` and will not run for pull requests.
 
-If you prefer a different Azure target (App Service, Azure Container Instances, AKS, or Web App for Containers) I can add the specific deployment steps — most will reuse the same `AZURE_CREDENTIALS` secret and require an additional resource name (e.g. `AZURE_WEBAPP_NAME`).
+If you'd like help connecting the repository in Railway or configuring environment variables there, tell me and I can provide step-by-step guidance or add additional workflow steps to set environment variables using the Railway CLI.

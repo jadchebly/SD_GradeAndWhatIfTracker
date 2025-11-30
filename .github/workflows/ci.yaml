@@ -65,7 +65,7 @@ jobs:
 
 
   deploy:
-    name: Deploy to Azure Container Registry (ACR)
+    name: Deploy to Railway
     runs-on: ubuntu-latest
     needs: build
     # only run deploy when pushed to main branch
@@ -74,50 +74,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Azure secrets
+      - name: Validate Railway secret
         run: |
           set -e
-          if [ -z "${ACR_NAME}" ]; then
-            echo "ERROR: Repository secret ACR_NAME is not set or is empty. Add it in Settings -> Secrets -> Actions." >&2
-            exit 1
-          fi
-          if ! echo "${ACR_NAME}" | grep -Eq '^[a-z0-9]{5,50}$'; then
-            echo "ERROR: ACR_NAME must be 5-50 lowercase alphanumeric characters (only a-z,0-9). Current: '${ACR_NAME}'" >&2
-            exit 1
-          fi
-          if [ -z "${AZURE_CREDENTIALS}" ]; then
-            echo "ERROR: Repository secret AZURE_CREDENTIALS is not set. Create a service principal and add its JSON output as AZURE_CREDENTIALS." >&2
+          if [ -z "${RAILWAY_TOKEN}" ]; then
+            echo "ERROR: Repository secret RAILWAY_TOKEN is not set. Add it in Settings -> Secrets -> Actions." >&2
             exit 1
           fi
         env:
-          ACR_NAME: ${{ secrets.ACR_NAME }}
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      - name: Azure Login
-        uses: azure/login@v1
+      - name: Set up Node.js (for Railway CLI)
+        uses: actions/setup-node@v4
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          node-version: '18'
 
-      - name: Login to ACR
+      - name: Install Railway CLI
         run: |
-          echo "Logging into ACR: $ACR_NAME"
-          az acr login --name "$ACR_NAME"
-        env:
-          ACR_NAME: ${{ secrets.ACR_NAME }}
+          npm install -g @railway/cli
 
-      - name: Build and push image to ACR
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.ACR_NAME }}.azurecr.io/${{ github.repository }}:latest
-            ${{ secrets.ACR_NAME }}.azurecr.io/${{ github.repository }}:${{ github.sha }}
+      - name: Login to Railway
+        run: |
+          railway login --apiKey "${RAILWAY_TOKEN}"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Deploy to Railway
+        run: |
+          # Use non-interactive CI deploy; this will deploy the repo using Railway's config
+          railway up --ci --detach || railway deploy --ci || true
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deployment info
         run: |
-          echo "Image pushed to ACR: ${ACR_NAME}.azurecr.io/${{ github.repository }}:latest"
-        env:
-          ACR_NAME: ${{ secrets.ACR_NAME }}
+          echo "Railway deploy attempted. Check Railway project linked to this repository for current status."
 

@@ -6,3 +6,4 @@ pydantic-settings
 pytest
 httpx
 pytest-cov
+prometheus-client
